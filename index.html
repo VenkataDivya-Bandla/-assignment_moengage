@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation Analyzer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding: 20px;
+        }
+        .analyzer-container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            padding: 30px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .analyze-btn {
+            background-color: #4e73df;
+            border: none;
+            padding: 10px 20px;
+            font-weight: bold;
+        }
+        .export-btn {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 5px 15px;
+            margin-right: 10px;
+        }
+        h1 {
+            color: #2e59d9;
+            margin-bottom: 20px;
+        }
+        .divider {
+            border-top: 1px solid #eee;
+            margin: 20px 0;
+        }
+        #result-container {
+            display: none;
+            margin-top: 20px;
+        }
+        .spinner-border {
+            display: none;
+        }
+        .score-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            color: white;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .score-a { background-color: #28a745; }
+        .score-b { background-color: #6f42c1; }
+        .score-c { background-color: #fd7e14; }
+        .score-d { background-color: #dc3545; }
+        .score-f { background-color: #6c757d; }
+        .analysis-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+        }
+        .suggestions-list {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="analyzer-container">
+        <h1>Documentation Analyzer</h1>
+        
+        <div class="mb-3">
+            <label for="articleUrl" class="form-label">Enter MoEngage Article URL:</label>
+            <input type="text" class="form-control" id="articleUrl" 
+                   placeholder="https://help.moengage.com/hc/en-us/articles/...">
+        </div>
+        
+        <div class="mb-3">
+            <button id="analyzeBtn" class="btn analyze-btn text-white">Analyze Article</button>
+            <div class="spinner-border text-primary mt-3" role="status" id="loadingSpinner">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+        
+        <div class="divider"></div>
+        
+        <p>This tool analyzes a MoEngage documentation article and provides a structured report based on:</p>
+        <ul>
+            <li><strong>Readability for a Marketer</strong></li>
+            <li><strong>Structure and Flow</strong></li>
+            <li><strong>Completeness of Information & Examples</strong></li>
+            <li><strong>Style and Clarity (based on Microsoft-style principles)</strong></li>
+        </ul>
+        <p>Once you enter a valid article URL and click <strong>Analyze Article</strong>, a detailed report with actionable suggestions will be generated.</p>
+        
+        <div id="result-container">
+            <div class="divider"></div>
+            <h4>Analysis Results</h4>
+            <div id="analysisResults"></div>
+            <div class="mt-3">
+                <button id="exportJson" class="btn export-btn">Export as JSON</button>
+                <button id="exportMention" class="btn export-btn">Export as Mention</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let analysisData = null;
+
+        document.getElementById('analyzeBtn').addEventListener('click', async function() {
+            const url = document.getElementById('articleUrl').value.trim();
+            if (!url) {
+                alert('Please enter a valid URL');
+                return;
+            }
+
+            if (!url || !url.trim()) {
+                alert('Please enter a valid URL');
+                return;
+            }
+
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const spinner = document.getElementById('loadingSpinner');
+            
+            analyzeBtn.disabled = true;
+            analyzeBtn.textContent = 'Analyzing...';
+            spinner.style.display = 'inline-block';
+            
+            try {
+                console.log('Sending request to:', '/analyze');
+                console.log('URL:', url);
+                
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url: url })
+                });
+                
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Analysis failed: ${response.status} - ${errorText}`);
+                }
+                
+                const result = await response.json();
+                console.log('Analysis result:', result);
+                
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+                
+                analysisData = result;
+                displayResults(result);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error analyzing document: ' + error.message);
+            } finally {
+                analyzeBtn.disabled = false;
+                analyzeBtn.textContent = 'Analyze Article';
+                spinner.style.display = 'none';
+            }
+        });
+
+        function getScoreClass(score) {
+            if (score >= 90) return 'score-a';
+            if (score >= 80) return 'score-b';
+            if (score >= 70) return 'score-c';
+            if (score >= 60) return 'score-d';
+            return 'score-f';
+        }
+
+        function getScoreGrade(score) {
+            if (score >= 90) return 'A';
+            if (score >= 80) return 'B';
+            if (score >= 70) return 'C';
+            if (score >= 60) return 'D';
+            return 'F';
+        }
+
+        function displayResults(data) {
+            const resultContainer = document.getElementById('result-container');
+            const resultsDiv = document.getElementById('analysisResults');
+            
+            const overallGrade = data.overall ? data.overall.grade : getScoreGrade(data.readability.readability_score);
+            const overallScore = data.overall ? data.overall.overall_score : 'N/A';
+            
+            resultsDiv.innerHTML = `
+                <div class="analysis-section">
+                    <h5>${data.title || 'Article Analysis'}</h5>
+                    <p><strong>URL:</strong> <a href="${data.url}" target="_blank">${data.url}</a></p>
+                    <p><strong>Overall Grade:</strong> <span class="score-badge ${getScoreClass(overallScore)}">${overallGrade}</span> (${overallScore}/100)</p>
+                </div>
+
+                <div class="analysis-section">
+                    <h6>📖 Readability Analysis</h6>
+                    <p><strong>Score:</strong> ${data.readability.readability_score}/100</p>
+                    <p><strong>Details:</strong> ${data.readability.details}</p>
+                    ${data.readability.suggestions.length > 0 ? `
+                        <div class="suggestions-list">
+                            <strong>Suggestions:</strong>
+                            <ul>
+                                ${data.readability.suggestions.map(s => `<li>${s}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <div class="analysis-section">
+                    <h6>🏗️ Structure Analysis</h6>
+                    <p><strong>Score:</strong> ${data.structure.structure_score}/100</p>
+                    <p><strong>Details:</strong> ${data.structure.details}</p>
+                    ${data.structure.suggestions.length > 0 ? `
+                        <div class="suggestions-list">
+                            <strong>Suggestions:</strong>
+                            <ul>
+                                ${data.structure.suggestions.map(s => `<li>${s}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <div class="analysis-section">
+                    <h6>✅ Completeness Analysis</h6>
+                    <p><strong>Score:</strong> ${data.completeness.completeness_score}/100</p>
+                    <p><strong>Details:</strong> ${data.completeness.details}</p>
+                    ${data.completeness.suggestions.length > 0 ? `
+                        <div class="suggestions-list">
+                            <strong>Suggestions:</strong>
+                            <ul>
+                                ${data.completeness.suggestions.map(s => `<li>${s}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <div class="analysis-section">
+                    <h6>✍️ Style Guidelines</h6>
+                    <p><strong>Score:</strong> ${data.style_guidelines.style_score}/100</p>
+                    <p><strong>Details:</strong> ${data.style_guidelines.details}</p>
+                    ${data.style_guidelines.suggestions.length > 0 ? `
+                        <div class="suggestions-list">
+                            <strong>Suggestions:</strong>
+                            <ul>
+                                ${data.style_guidelines.suggestions.map(s => `<li>${s}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <div class="analysis-section">
+                    <h6>🎯 Marketer Focus</h6>
+                    <p><strong>Score:</strong> ${data.marketer_focus.marketer_score}/100</p>
+                    <p><strong>Details:</strong> ${data.marketer_focus.details}</p>
+                    ${data.marketer_focus.suggestions.length > 0 ? `
+                        <div class="suggestions-list">
+                            <strong>Suggestions:</strong>
+                            <ul>
+                                ${data.marketer_focus.suggestions.map(s => `<li>${s}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                </div>
+
+                ${data.overall ? `
+                    <div class="analysis-section">
+                        <h6>💡 Overall Recommendations</h6>
+                        <ul>
+                            ${data.overall.recommendations.map(r => `<li>${r}</li>`).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+            `;
+            
+            resultContainer.style.display = 'block';
+            
+            // Set up export buttons
+            document.getElementById('exportJson').onclick = function() {
+                const blob = new Blob([JSON.stringify(analysisData, null, 2)], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'analysis_report.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            };
+            
+            document.getElementById('exportMention').onclick = function() {
+                // Create a simplified mention format
+                const mentionText = `Documentation Analysis Report
+                
+Article: ${data.title}
+URL: ${data.url}
+Overall Grade: ${overallGrade} (${overallScore}/100)
+
+Key Scores:
+- Readability: ${data.readability.readability_score}/100
+- Structure: ${data.structure.structure_score}/100  
+- Completeness: ${data.completeness.completeness_score}/100
+- Style: ${data.style_guidelines.style_score}/100
+- Marketer Focus: ${data.marketer_focus.marketer_score}/100
+
+Top Priority Improvements:
+${data.overall ? data.overall.recommendations.join('\n') : 'See detailed analysis for specific recommendations'}`;
+
+                const blob = new Blob([mentionText], {type: 'text/plain'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'analysis_mention.txt';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            };
+        }
+
+        // Allow Enter key to trigger analysis
+        document.getElementById('articleUrl').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('analyzeBtn').click();
+            }
+        });
+    </script>
+</body>
+</html>

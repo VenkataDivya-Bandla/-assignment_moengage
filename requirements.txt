@@ -1,0 +1,23 @@
+# Core Flask dependencies
+Flask==2.3.3
+Werkzeug==2.3.7
+flask_cors
+
+# Web scraping and parsing
+requests==2.31.0
+beautifulsoup4==4.12.2
+lxml==4.9.3
+
+# Text analysis
+textstat==0.7.3
+
+# HTTP adapters and retries
+urllib3==2.0.4
+
+# Optional AI libraries (install if needed)
+torch>=2.0.0
+transformers>=4.30.0
+openai>=1.0.0
+
+# Data handling
+dataclasses; python_version<"3.7"
